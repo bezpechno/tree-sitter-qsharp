@@ -39,32 +39,6 @@ Built by reading the [Q# language reference](https://learn.microsoft.com/en-us/a
 
 Capture names follow the [nvim-treesitter](https://github.com/nvim-treesitter/nvim-treesitter/blob/main/CONTRIBUTING.md) conventions.
 
-## Installation
-
-```bash
-npm install tree-sitter-qsharp    # Node.js
-cargo add tree-sitter-qsharp      # Rust
-pip install tree-sitter-qsharp    # Python
-```
-
-Or from source:
-
-```bash
-git clone https://github.com/bezpechno/tree-sitter-qsharp
-cd tree-sitter-qsharp
-tree-sitter generate
-```
-
-## Development
-
-```bash
-tree-sitter generate    # regenerate parser
-tree-sitter test        # run corpus tests
-tree-sitter fuzz        # fuzz test
-tree-sitter parse file.qs          # parse a file
-tree-sitter highlight file.qs      # preview highlighting
-```
-
 ## Contributing
 
 If you find Q# code that doesn't parse correctly, please open an issue with the `.qs` file or a minimal reproducing snippet. Pull requests are welcome.
