@@ -540,3 +540,22 @@ operation Main() : Unit {
                 (identifier)
                 (identifier))
               field: (identifier))))))))
+
+================================================================================
+Comment kinds: normal, doc, and quadruple-slash
+================================================================================
+
+// normal
+/// doc
+//// four slashes is a normal comment
+namespace N {}
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (comment)
+  (doc_comment)
+  (comment)
+  (namespace
+    name: (path_or_identifier
+      (identifier))))

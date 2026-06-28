@@ -395,9 +395,14 @@ module.exports = grammar({
     ternary_expression: ($) =>
       prec.right(PREC.TERNARY, seq($._expression, "?", $._expression, "|", $._expression)),
 
-    // NOTE: Q# supports explicit type args like `Foo<Int>(x)` but this creates
-    // an ambiguity with `<` comparison that requires semantic resolution.
-    // Type args are omitted here — Q# type inference handles this in practice.
+    // Q# *documents* explicit type arguments at call sites, e.g. `CControlled<'T3>`
+    // or `Mapped<String[], _>(...)` (see Microsoft's "Type parameterizations" and
+    // "Type inference" pages). But the current reference compiler doesn't parse
+    // them: qsc_parse/src/expr.rs treats `<` only as BinOp::Lt and call_op accepts
+    // only `lhs ( args )` (the classic C#/F# compiler did support the syntax). We
+    // match the current compiler, so `Foo<Int>(x)` parses as the comparison chain
+    // `Foo < Int > (x)`. Supporting it would mean resolving a `<` ambiguity that the
+    // reference parser itself leaves unresolved here.
     call_expression: ($) =>
       prec(PREC.CALL, seq($._expression, "(", optional(sep1($._expression, ",")), ")")),
 
@@ -529,9 +534,15 @@ module.exports = grammar({
 
     apos_ident: (_) => /'[a-zA-Z_][a-zA-Z0-9_]*/,
 
-    comment: (_) => token(seq("//", /[^\/\n][^\n]*|[^\n\/]|/)),
+    // `//` is a normal comment; `///` (exactly three slashes) is a doc comment.
+    // Four or more leading slashes (`////`) is a NORMAL comment, matching the Q#
+    // compiler's lexer (qsc_parse/src/lex/raw.rs: Doc only when the 3rd char is
+    // `/` and the 4th is not). The comment body's first alternative forbids a
+    // leading slash so `///x` is left to doc_comment; the second alternative
+    // (`//` again) lets `////…` be consumed here as a normal comment.
+    comment: (_) => token(seq("//", /[^\/\n][^\n]*|\/\/[^\n]*|/)),
 
-    doc_comment: (_) => token(seq("///", /[^\n]*/)),
+    doc_comment: (_) => token(seq("///", /[^\/\n][^\n]*|/)),
   },
 });
 
