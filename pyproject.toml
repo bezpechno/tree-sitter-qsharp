@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "tree-sitter-qsharp"
 description = "Q# grammar for tree-sitter"
-version = "0.1.2"
+version = "0.2.0"
 keywords = ["incremental", "parsing", "tree-sitter", "qsharp"]
 classifiers = [
   "Intended Audience :: Developers",

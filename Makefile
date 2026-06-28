@@ -1,6 +1,6 @@
 LANGUAGE_NAME := tree-sitter-qsharp
 HOMEPAGE_URL := https://github.com/bezpechno/tree-sitter-qsharp
-VERSION := 0.1.2
+VERSION := 0.2.0
 
 # repository
 SRC_DIR := src

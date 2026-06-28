@@ -1,6 +1,6 @@
 {
   "name": "tree-sitter-qsharp",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Q# grammar for tree-sitter",
   "repository": "github:bezpechno/tree-sitter-qsharp",
   "license": "MIT",
