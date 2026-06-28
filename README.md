@@ -22,7 +22,7 @@ Built by reading the [Q# language reference](https://learn.microsoft.com/en-us/a
 
 ### Known limitations
 
-- Explicit type arguments on calls (`Foo<Int>(x)`) are not supported due to `<`/`>` ambiguity with comparison operators. Q# type inference handles this in practice.
+- Explicit type arguments on calls (`Foo<Int>(x)`): the current Q# compiler parses `<` only as the comparison operator, so it reads `Foo<Int>(x)` as a comparison chain rather than a type application — this grammar matches that behavior. The syntax appears in older Q# docs but is not accepted by the current compiler (verified by running it).
 - Open-ended step ranges (`...2...`) parse but the AST does not perfectly represent all range component positions.
 - This is a v0.x project. There may be edge cases that are not yet covered.
 
