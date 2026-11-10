@@ -118,3 +118,193 @@ operation Foo(q : Qubit) : Unit is Adj + Ctl {
         (functor_expr)))
     body: (callable_body
       (block))))
+
+================================================================================
+Local callable, open and newtype
+================================================================================
+
+function F() : Int {
+    open Std.Math;
+    newtype P = Int;
+    function Bar() : Int { 2 }
+    Bar() + 1
+}
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (callable_decl
+    (identifier)
+    (param_list)
+    (builtin_type)
+    (callable_body
+      (block
+        (open_decl
+          (path_or_identifier
+            (path
+              (identifier)
+              (identifier))))
+        (newtype_decl
+          (identifier)
+          (type_def
+            (builtin_type)))
+        (callable_decl
+          (identifier)
+          (param_list)
+          (builtin_type)
+          (callable_body
+            (block
+              (expression_statement
+                (integer_literal)))))
+        (expression_statement
+          (binary_expression
+            (call_expression
+              (identifier))
+            (integer_literal)))))))
+
+================================================================================
+Attributes on struct and newtype
+================================================================================
+
+@Config(Adaptive)
+struct S { a : Int }
+
+@Config(Adaptive)
+newtype Q = Int;
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (struct_decl
+    (attribute
+      (path_or_identifier
+        (identifier))
+      (identifier))
+    (identifier)
+    (field_def
+      (identifier)
+      (builtin_type)))
+  (newtype_decl
+    (attribute
+      (path_or_identifier
+        (identifier))
+      (identifier))
+    (identifier)
+    (type_def
+      (builtin_type))))
+
+================================================================================
+Class constraint with type arguments
+================================================================================
+
+function F<'T : Exp[Int] + Eq>(a : 'T) : 'T { a }
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (callable_decl
+    (identifier)
+    (type_params
+      (type_param
+        (apos_ident)
+        (class_constraint
+          (identifier)
+          (builtin_type))
+        (class_constraint
+          (identifier))))
+    (param_list
+      (typed_param
+        (identifier)
+        (apos_ident)))
+    (apos_ident)
+    (callable_body
+      (block
+        (expression_statement
+          (identifier))))))
+
+================================================================================
+Trailing commas in type and specialization parameters
+================================================================================
+
+operation Op<'T, 'U,>(q : Qubit) : Unit is Adj + Ctl {
+    body (...,) { H(q); }
+    adjoint self;
+    controlled (cs, ...,) { Controlled H(cs, q); }
+}
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (callable_decl
+    (identifier)
+    (type_params
+      (type_param
+        (apos_ident))
+      (type_param
+        (apos_ident)))
+    (param_list
+      (typed_param
+        (identifier)
+        (builtin_type)))
+    (builtin_type)
+    (functor_clause
+      (functor_expr
+        (functor_expr)
+        (functor_expr)))
+    (callable_body
+      (specialization_list
+        (specialization
+          (spec_name)
+          (spec_param)
+          (block
+            (expression_statement
+              (call_expression
+                (identifier)
+                (identifier)))))
+        (specialization
+          (spec_name)
+          (spec_generator))
+        (specialization
+          (spec_name)
+          (spec_param
+            (identifier))
+          (block
+            (expression_statement
+              (call_expression
+                (unary_expression
+                  (identifier))
+                (identifier)
+                (identifier)))))))))
+
+================================================================================
+Attributes on open and import
+================================================================================
+
+@Config(Adaptive)
+open Std.Math;
+
+@Config(Adaptive)
+import Std.Math.PI;
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (open_decl
+    (attribute
+      (path_or_identifier
+        (identifier))
+      (identifier))
+    (path_or_identifier
+      (path
+        (identifier)
+        (identifier))))
+  (import_decl
+    (attribute
+      (path_or_identifier
+        (identifier))
+      (identifier))
+    (import_item
+      (import_path
+        (identifier)
+        (identifier)
+        (identifier)))))

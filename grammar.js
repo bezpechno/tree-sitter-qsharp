@@ -1,40 +1,43 @@
 /// <reference types="tree-sitter-cli/dsl" />
 // @ts-check
 
-// Operator precedence from the official Q# language specification.
-// https://learn.microsoft.com/en-us/azure/quantum/user-guide/language/expressions/precedenceandassociativity
+// Operator precedence, matching the Q# compiler (qsc_parse/src/expr.rs:
+// prefix_op and mixfix_op). Microsoft Learn's precedence table differs from the
+// compiler in several places (comparisons vs bitwise operators, `-x ^ y`,
+// lambdas, `?|` vs `w/`); where they disagree we follow the compiler, which is
+// what decides what a program means.
 const PREC = {
-  ASSIGN: 0,
-  UPDATE: 1,     // w/ <-
-  RANGE: 2,      // ..
-  TERNARY: 3,    // ? |
-  OR: 4,         // or
-  AND: 5,        // and
-  BIT_OR: 6,     // |||
-  BIT_XOR: 7,    // ^^^
-  BIT_AND: 8,    // &&&
-  EQUALITY: 9,   // == !=
-  COMPARE_LTE: 10, // <=
-  COMPARISON: 11,  // < > >=
-  SHIFT: 12,     // <<< >>>
-  ADD: 13,       // + -
-  MUL: 14,       // * / %
-  EXP: 15,       // ^
-  PREFIX: 16,    // ~~~ not -
-  CALL: 17,      // ( )
-  FUNCTOR: 18,   // Adjoint Controlled
-  POSTFIX: 19,   // !
-  ACCESS: 20,    // . [] ::
-  LAMBDA: 21,    // -> =>
+  ASSIGN: 0,     // = op= w/=
+  LAMBDA: 1,     // -> =>
+  RANGE: 1,      // .. ...
+  UPDATE: 1,     // w/ <-  (left)
+  TERNARY: 1,    // ? |    (right)
+  OR: 2,         // or
+  AND: 3,        // and
+  COMPARISON: 4, // == != < <= > >=
+  BIT_OR: 5,     // |||
+  BIT_XOR: 6,    // ^^^
+  BIT_AND: 7,    // &&&
+  SHIFT: 8,      // <<< >>>
+  ADD: 9,        // + -
+  MUL: 10,       // * / %
+  PREFIX: 11,    // not ~~~ + -
+  EXP: 12,       // ^ (right)
+  CALL: 13,      // ( )
+  FUNCTOR: 14,   // Adjoint Controlled
+  POSTFIX: 15,   // !
+  ACCESS: 15,    // . :: []
 };
 
-module.exports = grammar({
+export default grammar({
   name: "qsharp",
 
   extras: ($) => [/\s/, $.comment, $.doc_comment],
 
   externals: ($) => [
     $.float_literal,
+    $.imaginary_literal,
+    $.interpolation_content,
     $._error_sentinel, // unused token to detect error recovery mode
   ],
 
@@ -46,10 +49,8 @@ module.exports = grammar({
   word: ($) => $.identifier,
 
   conflicts: ($) => [
-    [$._expression_no_block, $.path],
     [$.expression_statement, $._expression],
     [$.type_def, $.tuple_type],
-    [$._top_level_item, $._statement],
   ],
 
   rules: {
@@ -58,7 +59,7 @@ module.exports = grammar({
     // =====================================================================
 
     source_file: ($) =>
-      repeat(choice($.namespace, $._top_level_item, $._statement)),
+      seq(repeat(choice($.namespace, $._statement)), optional($._trailing_expression)),
 
     namespace: ($) =>
       seq("namespace", field("name", $.path_or_identifier), "{", repeat($._namespace_item), "}"),
@@ -79,7 +80,7 @@ module.exports = grammar({
     // Import / Export / Open
     // =====================================================================
 
-    import_decl: ($) => seq("import", sep1($.import_item, ","), ";"),
+    import_decl: ($) => seq(repeat($.attribute), "import", commaSep1($.import_item), ";"),
 
     import_item: ($) =>
       seq($.import_path, optional(seq("as", $.identifier))),
@@ -90,12 +91,12 @@ module.exports = grammar({
         seq($.identifier, repeat(seq(".", $.identifier)))
       ),
 
-    export_decl: ($) => seq(repeat($.attribute), "export", sep1($.export_item, ","), ";"),
+    export_decl: ($) => seq(repeat($.attribute), "export", commaSep1($.export_item), ";"),
 
     export_item: ($) => seq($.path_or_identifier, optional(seq("as", $.identifier))),
 
     open_decl: ($) =>
-      seq("open", $.path_or_identifier, optional(seq("as", $.identifier)), ";"),
+      seq(repeat($.attribute), "open", $.path_or_identifier, optional(seq("as", $.identifier)), ";"),
 
     // =====================================================================
     // Callable declarations (operation / function)
@@ -115,22 +116,33 @@ module.exports = grammar({
         field("body", $.callable_body)
       ),
 
+    // The compiler takes any expression after the name (qsc_parse item.rs
+    // parse_attr), so the argument may be a tuple such as
+    // `@CircuitRenderingOptions(hideBox=true, inputSizes=[3, 4])`.
     attribute: ($) =>
-      seq("@", $.path_or_identifier, optional(seq("(", optional($._expression), ")"))),
+      seq(
+        "@",
+        $.path_or_identifier,
+        optional(seq("(", optional(commaSep1($._expression)), ")"))
+      ),
 
-    type_params: ($) => seq("<", sep1($.type_param, ","), ">"),
+    type_params: ($) => seq("<", commaSep1($.type_param), ">"),
 
+    // `'T`, `'T : Eq + Show`, `'T : Exp[Int]`
     type_param: ($) =>
-      seq($.apos_ident, optional(seq(":", sep1($.identifier, "+")))),
+      seq($.apos_ident, optional(seq(":", sep1($.class_constraint, "+")))),
 
-    param_list: ($) => seq("(", optional(sep1($._param, ",")), ")"),
+    class_constraint: ($) =>
+      seq(field("name", $.identifier), optional(seq("[", commaSep1($.type), "]"))),
+
+    param_list: ($) => seq("(", optional(commaSep1($._param)), ")"),
 
     _param: ($) => choice($.typed_param, $.tuple_param),
 
     typed_param: ($) =>
       seq(field("name", $.identifier), ":", field("type", $.type)),
 
-    tuple_param: ($) => seq("(", sep1($._param, ","), ")"),
+    tuple_param: ($) => seq("(", commaSep1($._param), ")"),
 
     functor_clause: ($) => seq("is", $.functor_expr),
 
@@ -164,24 +176,40 @@ module.exports = grammar({
 
     // `body ...`, `adjoint ...`, `body (cs, ...)`, `controlled (cs, ...)`
     spec_param: ($) =>
-      choice("...", seq("(", sep1(choice($.identifier, "..."), ","), ")")),
+      choice("...", seq("(", commaSep1(choice($.identifier, "...")), ")")),
 
     // =====================================================================
     // Type declarations
     // =====================================================================
 
     newtype_decl: ($) =>
-      seq(optional("internal"), "newtype", field("name", $.identifier), "=", $.type_def, ";"),
+      seq(
+        repeat($.attribute),
+        optional("internal"),
+        "newtype",
+        field("name", $.identifier),
+        "=",
+        $.type_def,
+        ";"
+      ),
 
     type_def: ($) =>
       choice(
         seq($.identifier, ":", $.type),
         $.type,
-        seq("(", sep1($.type_def, ","), ")")
+        seq("(", commaSep1($.type_def), ")")
       ),
 
     struct_decl: ($) =>
-      seq(optional("internal"), "struct", field("name", $.identifier), "{", optional(seq(sep1($.field_def, ","), optional(","))), "}"),
+      seq(
+        repeat($.attribute),
+        optional("internal"),
+        "struct",
+        field("name", $.identifier),
+        "{",
+        optional(commaSep1($.field_def)),
+        "}"
+      ),
 
     field_def: ($) =>
       seq(field("name", $.identifier), ":", field("type", $.type)),
@@ -194,14 +222,12 @@ module.exports = grammar({
       choice(
         $.let_statement,
         $.mutable_statement,
-        $.set_statement,
         $.use_statement,
         $.borrow_statement,
-        $.return_statement,
-        $.fail_statement,
-        $.import_decl,
+        // Any item (callable, struct, newtype, open, import, export) may also be
+        // declared locally inside a block.
+        $._top_level_item,
         $.expression_statement,
-        $.struct_decl,
         $.empty_statement
       ),
 
@@ -211,26 +237,23 @@ module.exports = grammar({
     mutable_statement: ($) =>
       seq("mutable", $.pattern, optional(seq(":", $.type)), "=", $._expression, ";"),
 
-    // `set x = expr;`, `set x += expr;`, `set (a, b) = (1, 2);`
-    set_statement: ($) => seq("set", $._expression, ";"),
-
     use_statement: ($) =>
       seq("use", $.pattern, optional(seq(":", $.type)), "=", $.qubit_init, choice(";", $.block)),
 
     borrow_statement: ($) =>
       seq("borrow", $.pattern, optional(seq(":", $.type)), "=", $.qubit_init, choice(";", $.block)),
 
-    return_statement: ($) => seq("return", $._expression, ";"),
-
-    fail_statement: ($) => seq("fail", $._expression, ";"),
-
     expression_statement: ($) =>
       choice(
         seq($._expression_no_block, ";"),
-        $._expression_with_block,
-        // Q# allows omitting trailing semicolons for the last expression in a block
-        prec(-1, $._expression_no_block)
+        $._expression_with_block
       ),
+
+    // Only the last expression of a block (or file) may omit its `;`, as in the
+    // compiler (qsc_parse stmt.rs check_semis). Allowing it anywhere made
+    // `a b c` three statements and hid missing semicolons.
+    _trailing_expression: ($) =>
+      alias($._expression_no_block, $.expression_statement),
 
     empty_statement: (_) => ";",
 
@@ -242,7 +265,7 @@ module.exports = grammar({
       choice(
         seq("Qubit", "(", ")"),
         seq("Qubit", "[", $._expression, "]"),
-        seq("(", sep1($.qubit_init, ","), ")")
+        seq("(", commaSep1($.qubit_init), ")")
       ),
 
     // =====================================================================
@@ -253,8 +276,12 @@ module.exports = grammar({
       choice(
         $.identifier,
         $.discard,
-        seq("(", sep1($.pattern, ","), ")")
+        seq("(", optional(commaSep1(choice($.pattern, alias($._typed_pattern, $.pattern)))), ")")
       ),
+
+    // `(a : Int, _ : Double)`. At the top of `let`/`use`/... the annotation is
+    // parsed by the statement itself.
+    _typed_pattern: ($) => seq(choice($.identifier, $.discard), ":", $.type),
 
     discard: (_) => "_",
 
@@ -279,7 +306,7 @@ module.exports = grammar({
 
     array_type: ($) => prec.left(seq($.type, "[", "]")),
 
-    tuple_type: ($) => seq("(", sep1($.type, ","), ")"),
+    tuple_type: ($) => seq("(", optional(commaSep1($.type)), ")"),
 
     callable_type: ($) =>
       prec.right(seq($.type, choice("->", "=>"), $.type, optional(seq("is", $.functor_expr)))),
@@ -293,8 +320,10 @@ module.exports = grammar({
 
     _expression_no_block: ($) =>
       choice(
+        // Dotted names in expressions (`a.b.c`, `Std.Math.PI`) are field_expression
+        // chains: syntax alone can't tell a namespace path from field access, and
+        // the compiler resolves that later.
         $.identifier,
-        $.path,
         $.literal,
         $.parenthesized_expression,
         $.unit_expression,
@@ -306,6 +335,7 @@ module.exports = grammar({
         $.binary_expression,
         $.assignment_expression,
         $.compound_assignment_expression,
+        $.update_assignment_expression,
         $.update_expression,
         $.ternary_expression,
         $.call_expression,
@@ -319,6 +349,12 @@ module.exports = grammar({
         $.open_range_end,
         $.full_range,
         $.new_expression,
+        $.set_expression,
+        $.return_expression,
+        $.fail_expression,
+        $.parallel_expression,
+        $.break_expression,
+        $.continue_expression,
         $.discard
       ),
 
@@ -329,7 +365,8 @@ module.exports = grammar({
         $.for_expression,
         $.while_expression,
         $.repeat_expression,
-        $.conjugation_expression
+        $.conjugation_expression,
+        alias($._parallel_block_expression, $.parallel_expression)
       ),
 
     parenthesized_expression: ($) => seq("(", $._expression, ")"),
@@ -337,10 +374,10 @@ module.exports = grammar({
     unit_expression: (_) => seq("(", ")"),
 
     tuple_expression: ($) =>
-      seq("(", $._expression, ",", optional(sep1($._expression, ",")), ")"),
+      seq("(", $._expression, ",", optional(commaSep1($._expression)), ")"),
 
     array_expression: ($) =>
-      seq("[", optional(sep1($._expression, ",")), "]"),
+      seq("[", optional(commaSep1($._expression)), "]"),
 
     array_repeat_expression: ($) =>
       seq("[", $._expression, ",", "size", "=", $._expression, "]"),
@@ -348,7 +385,10 @@ module.exports = grammar({
     string_interpolation: ($) =>
       seq('$"', repeat(choice($.interpolation_content, $.interpolation_expression)), '"'),
 
-    interpolation_content: (_) => /[^"{}\\]+|\\./,
+    // interpolation_content: handled by the external scanner so that
+    // whitespace and `//` inside the string stay string text instead of being
+    // skipped as extras. Runs up to the next unescaped `"` or `{`; a lone `}`
+    // is plain text (lex/raw.rs).
 
     interpolation_expression: ($) => seq("{", $._expression, "}"),
 
@@ -364,9 +404,7 @@ module.exports = grammar({
       choice(
         prec.left(PREC.OR, seq($._expression, "or", $._expression)),
         prec.left(PREC.AND, seq($._expression, "and", $._expression)),
-        prec.left(PREC.EQUALITY, seq($._expression, choice("==", "!="), $._expression)),
-        prec.left(PREC.COMPARE_LTE, seq($._expression, "<=", $._expression)),
-        prec.left(PREC.COMPARISON, seq($._expression, choice("<", ">", ">="), $._expression)),
+        prec.left(PREC.COMPARISON, seq($._expression, choice("==", "!=", "<", "<=", ">", ">="), $._expression)),
         prec.left(PREC.BIT_OR, seq($._expression, "|||", $._expression)),
         prec.left(PREC.BIT_XOR, seq($._expression, "^^^", $._expression)),
         prec.left(PREC.BIT_AND, seq($._expression, "&&&", $._expression)),
@@ -384,10 +422,14 @@ module.exports = grammar({
         PREC.ASSIGN,
         seq(
           $._expression,
-          choice("+=", "-=", "*=", "/=", "%=", "^=", "&&&=", "|||=", "^^^=", "<<<=", ">>>=", "and=", "or=", "w/="),
+          choice("+=", "-=", "*=", "/=", "%=", "^=", "&&&=", "|||=", "^^^=", "<<<=", ">>>=", "and=", "or="),
           $._expression
         )
       ),
+
+    // `arr w/= i <- value`
+    update_assignment_expression: ($) =>
+      prec.right(PREC.ASSIGN, seq($._expression, "w/=", $._expression, "<-", $._expression)),
 
     update_expression: ($) =>
       prec.left(PREC.UPDATE, seq($._expression, "w/", $._expression, "<-", $._expression)),
@@ -404,7 +446,7 @@ module.exports = grammar({
     // `Foo < Int > (x)`. Supporting it would mean resolving a `<` ambiguity that the
     // reference parser itself leaves unresolved here.
     call_expression: ($) =>
-      prec(PREC.CALL, seq($._expression, "(", optional(sep1($._expression, ",")), ")")),
+      prec(PREC.CALL, seq($._expression, "(", optional(commaSep1($._expression)), ")")),
 
     index_expression: ($) =>
       prec(PREC.ACCESS, seq($._expression, "[", $._expression, "]")),
@@ -418,17 +460,49 @@ module.exports = grammar({
     lambda_expression: ($) =>
       prec.right(PREC.LAMBDA, seq($._expression, choice("->", "=>"), $._expression)),
 
+    // Ranges follow the compiler's range_op / expr_range_prefix: the operands
+    // after `..` are parsed one level above ranges, and a second `..` or a
+    // trailing `...` always continues the same range as its step/end.
+    //   a..b       range_expression
+    //   a..s..b    step_range_expression (start, step: s, end: b)
+    //   a..s...    step_range_expression (start, step: s)
+    //   ...s..b    step_range_expression (step: s, end: b)
+    //   ...s...    step_range_expression (step: s)
+    //   a...       open_range_start      ...b   open_range_end      ...  full_range
     range_expression: ($) =>
-      prec.left(PREC.RANGE, seq($._expression, "..", $._expression)),
+      prec.left(PREC.RANGE, seq($._range_start, $._expression)),
+
+    // `start ..`, shared by both range forms. Keeping the first `..` in its own
+    // rule stops the step form's higher precedence from leaking onto it (which
+    // would make `a w/ i <- b .. c` take the range into the update).
+    _range_start: ($) => prec.left(PREC.RANGE, seq($._expression, "..")),
 
     step_range_expression: ($) =>
-      prec.left(PREC.RANGE + 1, seq($._expression, "..", $._expression, "..", $._expression)),
+      prec.left(
+        PREC.RANGE,
+        seq(
+          choice($._range_step, $._open_range_step),
+          choice(seq("..", field("end", $._expression)), "...")
+        )
+      ),
 
+    // These only reduce before `..`/`...`, where they must win over
+    // range_expression / open_range_end; their higher precedence decides that.
+    _range_step: ($) =>
+      prec.right(PREC.RANGE + 1, seq($._range_start, field("step", $._expression))),
+
+    _open_range_step: ($) =>
+      prec.right(PREC.RANGE + 2, seq("...", field("step", $._expression))),
+
+    // `start...`: like `..`, the postfix `...` applies to everything before it
+    // (`i + 1...` is `(i + 1)...`).
     open_range_start: ($) =>
-      prec.right(PREC.ACCESS + 1, seq($._expression, "...")),
+      prec.left(PREC.RANGE, seq($._expression, "...")),
 
+    // `...end`: the operand is parsed one level above ranges (`...n - 1` is
+    // `...(n - 1)`).
     open_range_end: ($) =>
-      prec.right(PREC.ACCESS + 1, seq("...", $._expression)),
+      prec.right(PREC.RANGE + 1, seq("...", $._expression)),
 
     full_range: (_) => "...",
 
@@ -449,7 +523,7 @@ module.exports = grammar({
 
     // --- Block expressions ---
 
-    block: ($) => seq("{", repeat($._statement), "}"),
+    block: ($) => seq("{", repeat($._statement), optional($._trailing_expression), "}"),
 
     if_expression: ($) =>
       seq(
@@ -479,6 +553,31 @@ module.exports = grammar({
 
     conjugation_expression: ($) =>
       seq("within", $.block, "apply", $.block),
+
+    // `return`, `fail` and `set` are expressions whose operand is a full
+    // expression, so they nest (`c ? x | fail "msg"`) and, like any expression,
+    // may end a block without `;`.
+    return_expression: ($) => prec.right(PREC.ASSIGN, seq("return", $._expression)),
+
+    fail_expression: ($) => prec.right(PREC.ASSIGN, seq("fail", $._expression)),
+
+    // `set x = expr`, `set x += expr`, `set (a, b) = (1, 2)`
+    set_expression: ($) => prec.right(PREC.ASSIGN, seq("set", $._expression)),
+
+    // `parallel <expr>` and `parallel within <limit> <expr>` (Q# 1.32). The body
+    // is a full expression, as in the compiler. Like there, a `parallel` whose
+    // body is block-like (`parallel for ... { }`) ends a statement without `;`.
+    parallel_expression: ($) =>
+      prec.right(PREC.ASSIGN, seq("parallel", optional($._parallel_limit), field("body", $._expression))),
+
+    _parallel_block_expression: ($) =>
+      prec(PREC.ASSIGN + 1, seq("parallel", optional($._parallel_limit), field("body", $._expression_with_block))),
+
+    _parallel_limit: ($) => seq("within", field("limit", $._expression)),
+
+    break_expression: (_) => "break",
+
+    continue_expression: (_) => "continue",
 
     // =====================================================================
     // Paths and identifiers
@@ -510,11 +609,10 @@ module.exports = grammar({
     bigint_literal: (_) =>
       token(choice(/0[bB][01_]+L/, /0[oO][0-7_]+L/, /0[xX][0-9a-fA-F_]+L/, /[0-9][0-9_]*L/)),
 
-    // float_literal: handled by external scanner (src/scanner.c)
-    // to disambiguate `1.` (float) from `0..` (integer + range)
-
-    imaginary_literal: (_) =>
-      token(/[0-9][0-9_]*(\.[0-9][0-9_]*)?([eE][+-]?[0-9][0-9_]*)?i/),
+    // float_literal and imaginary_literal: handled by the external scanner
+    // (src/scanner.c) to disambiguate `1.` (float) and `1.i` (imaginary) from
+    // `0..` (integer + range). An imaginary literal is a float followed by `i`,
+    // so `1.i` and `1e3i` are valid but `1i` is not.
 
     string_literal: (_) => token(seq('"', repeat(choice(/[^"\\]/, /\\./)), '"')),
 
@@ -530,9 +628,11 @@ module.exports = grammar({
 
     // Note: `_` alone is NOT an identifier in Q# — it's a discard/hole.
     // The word rule handles this: tree-sitter matches `_` as keyword, not identifier.
-    identifier: (_) => /[a-zA-Z_][a-zA-Z0-9_]*/,
+    // Unicode, like the compiler's lexer (char::is_alphabetic for the first
+    // character, is_alphanumeric after it).
+    identifier: (_) => /[_\p{Alphabetic}][_\p{Alphabetic}\p{N}]*/,
 
-    apos_ident: (_) => /'[a-zA-Z_][a-zA-Z0-9_]*/,
+    apos_ident: (_) => /'[_\p{Alphabetic}][_\p{Alphabetic}\p{N}]*/,
 
     // `//` is a normal comment; `///` (exactly three slashes) is a doc comment.
     // Four or more leading slashes (`////`) is a NORMAL comment, matching the Q#
@@ -540,12 +640,18 @@ module.exports = grammar({
     // `/` and the 4th is not). The comment body's first alternative forbids a
     // leading slash so `///x` is left to doc_comment; the second alternative
     // (`//` again) lets `////…` be consumed here as a normal comment.
-    comment: (_) => token(seq("//", /[^\/\n][^\n]*|\/\/[^\n]*|/)),
+    comment: (_) => token(seq("//", optional(choice(/[^/\n][^\n]*/, /\/\/[^\n]*/)))),
 
-    doc_comment: (_) => token(seq("///", /[^\/\n][^\n]*|/)),
+    doc_comment: (_) => token(seq("///", optional(/[^/\n][^\n]*/))),
   },
 });
 
 function sep1(rule, delimiter) {
   return seq(rule, repeat(seq(delimiter, rule)));
+}
+
+// Comma-separated list that allows a trailing comma, like every comma list in
+// the Q# compiler (qsc_parse/src/prim.rs `seq`).
+function commaSep1(rule) {
+  return seq(sep1(rule, ","), optional(","));
 }

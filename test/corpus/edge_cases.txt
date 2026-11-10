@@ -15,8 +15,9 @@ operation Main() : Int {
     return_type: (builtin_type)
     body: (callable_body
       (block
-        (return_statement
-          (integer_literal))))))
+        (expression_statement
+          (return_expression
+            (integer_literal)))))))
 
 ================================================================================
 Fail statement
@@ -35,8 +36,9 @@ operation Main() : Unit {
     return_type: (builtin_type)
     body: (callable_body
       (block
-        (fail_statement
-          (string_literal))))))
+        (expression_statement
+          (fail_expression
+            (string_literal)))))))
 
 ================================================================================
 Empty statement
@@ -320,14 +322,15 @@ operation Main() : Unit {
           (pattern
             (identifier))
           (integer_literal))
-        (set_statement
-          (assignment_expression
-            (tuple_expression
-              (identifier)
-              (identifier))
-            (tuple_expression
-              (integer_literal)
-              (integer_literal))))))))
+        (expression_statement
+          (set_expression
+            (assignment_expression
+              (tuple_expression
+                (identifier)
+                (identifier))
+              (tuple_expression
+                (integer_literal)
+                (integer_literal)))))))))
 
 ================================================================================
 Struct inside function body
@@ -377,6 +380,34 @@ operation Main() : Unit {}
     (attribute
       (path_or_identifier
         (identifier)))
+    name: (identifier)
+    params: (param_list)
+    return_type: (builtin_type)
+    body: (callable_body
+      (block))))
+
+================================================================================
+Attribute with multiple arguments
+================================================================================
+
+@CircuitRenderingOptions(hideBox=true, inputSizes=[3, 4])
+operation Main() : Unit {}
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (callable_decl
+    (attribute
+      (path_or_identifier
+        (identifier))
+      (assignment_expression
+        (identifier)
+        (bool_literal))
+      (assignment_expression
+        (identifier)
+        (array_expression
+          (integer_literal)
+          (integer_literal))))
     name: (identifier)
     params: (param_list)
     return_type: (builtin_type)
@@ -435,13 +466,12 @@ operation Main() : Unit {
             (integer_literal)
             (integer_literal)
             (integer_literal)))
-        (set_statement
-          (compound_assignment_expression
-            (identifier)
-            (binary_expression
+        (expression_statement
+          (set_expression
+            (update_assignment_expression
+              (identifier)
               (integer_literal)
-              (unary_expression
-                (integer_literal)))))))))
+              (integer_literal))))))))
 
 ================================================================================
 Multiple elif clauses
@@ -536,9 +566,9 @@ operation Main() : Unit {
         (expression_statement
           (call_expression
             (field_expression
-              (path
+              (field_expression
                 (identifier)
-                (identifier))
+                field: (identifier))
               field: (identifier))))))))
 
 ================================================================================
@@ -559,3 +589,157 @@ namespace N {}
   (namespace
     name: (path_or_identifier
       (identifier))))
+
+================================================================================
+Trailing commas
+================================================================================
+
+function F(a : Int, b : Int,) : (Int, Int,) {
+    let xs = [1, 2,];
+    G(a, b,);
+    (a, b,)
+}
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (callable_decl
+    (identifier)
+    (param_list
+      (typed_param
+        (identifier)
+        (builtin_type))
+      (typed_param
+        (identifier)
+        (builtin_type)))
+    (tuple_type
+      (builtin_type)
+      (builtin_type))
+    (callable_body
+      (block
+        (let_statement
+          (pattern
+            (identifier))
+          (array_expression
+            (integer_literal)
+            (integer_literal)))
+        (expression_statement
+          (call_expression
+            (identifier)
+            (identifier)
+            (identifier)))
+        (expression_statement
+          (tuple_expression
+            (identifier)
+            (identifier)))))))
+
+================================================================================
+Unit type
+================================================================================
+
+operation F(op : Qubit[] => (), f : () -> Int) : Unit {}
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (callable_decl
+    (identifier)
+    (param_list
+      (typed_param
+        (identifier)
+        (callable_type
+          (array_type
+            (builtin_type))
+          (tuple_type)))
+      (typed_param
+        (identifier)
+        (callable_type
+          (tuple_type)
+          (builtin_type))))
+    (builtin_type)
+    (callable_body
+      (block))))
+
+================================================================================
+Typed bindings in tuple pattern
+================================================================================
+
+function F() : Unit {
+    let (a : Int, (b, _ : Double)) = (1, (2, 3.0));
+}
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (callable_decl
+    (identifier)
+    (param_list)
+    (builtin_type)
+    (callable_body
+      (block
+        (let_statement
+          (pattern
+            (pattern
+              (identifier)
+              (builtin_type))
+            (pattern
+              (pattern
+                (identifier))
+              (pattern
+                (discard)
+                (builtin_type))))
+          (tuple_expression
+            (integer_literal)
+            (tuple_expression
+              (integer_literal)
+              (float_literal))))))))
+
+================================================================================
+Unicode identifiers
+================================================================================
+
+function F() : Double {
+    let θ = 1.5;
+    θ
+}
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (callable_decl
+    (identifier)
+    (param_list)
+    (builtin_type)
+    (callable_body
+      (block
+        (let_statement
+          (pattern
+            (identifier))
+          (float_literal))
+        (expression_statement
+          (identifier))))))
+
+================================================================================
+Closing brace as interpolated string text
+================================================================================
+
+function F(x : Int) : String { $"a } {x} b" }
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (callable_decl
+    (identifier)
+    (param_list
+      (typed_param
+        (identifier)
+        (builtin_type)))
+    (builtin_type)
+    (callable_body
+      (block
+        (expression_statement
+          (string_interpolation
+            (interpolation_content)
+            (interpolation_expression
+              (identifier))
+            (interpolation_content)))))))

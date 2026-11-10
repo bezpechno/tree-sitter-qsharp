@@ -1,20 +1,20 @@
 {
+  "$schema": "https://tree-sitter.github.io/tree-sitter/assets/schemas/config.schema.json",
   "grammars": [
     {
       "name": "qsharp",
-      "camelCase": "qsharp",
       "scope": "source.qsharp",
       "path": ".",
-      "file-types": ["qs"],
+      "file-types": [
+        "qs"
+      ],
       "highlights": "queries/highlights.scm",
       "tags": "queries/tags.scm",
-      "folds": "queries/folds.scm",
-      "indents": "queries/indents.scm",
       "injection-regex": "^(qsharp|qs|q#)$"
     }
   ],
   "metadata": {
-    "version": "0.2.0",
+    "version": "0.3.0",
     "license": "MIT",
     "description": "Q# grammar for tree-sitter",
     "authors": [
@@ -25,5 +25,15 @@
     "links": {
       "repository": "https://github.com/bezpechno/tree-sitter-qsharp"
     }
+  },
+  "bindings": {
+    "c": true,
+    "go": true,
+    "java": false,
+    "node": true,
+    "python": true,
+    "rust": true,
+    "swift": true,
+    "zig": false
   }
 }

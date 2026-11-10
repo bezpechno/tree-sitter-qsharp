@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.13)
 
 project(tree-sitter-qsharp
-        VERSION "0.2.0"
+        VERSION "0.3.0"
         DESCRIPTION "Q# grammar for tree-sitter"
         HOMEPAGE_URL "https://github.com/bezpechno/tree-sitter-qsharp"
         LANGUAGES C)
@@ -17,7 +17,7 @@ endif()
 
 include(GNUInstallDirs)
 
-find_program(TREE_SITTER_CLI tree-sitter DOC "Tree-sitter CLI")
+find_program(TREE_SITTER_CLI tree-sitter DOC "Tree-sitter CLI" REQUIRED)
 
 add_custom_command(OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/src/grammar.json"
                           "${CMAKE_CURRENT_SOURCE_DIR}/src/node-types.json"

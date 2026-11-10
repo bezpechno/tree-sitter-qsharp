@@ -293,18 +293,21 @@ operation Main() : Unit {
           (pattern
             (identifier))
           (integer_literal))
-        (set_statement
-          (assignment_expression
-            (identifier)
-            (integer_literal)))
-        (set_statement
-          (compound_assignment_expression
-            (identifier)
-            (integer_literal)))
-        (set_statement
-          (compound_assignment_expression
-            (identifier)
-            (integer_literal)))))))
+        (expression_statement
+          (set_expression
+            (assignment_expression
+              (identifier)
+              (integer_literal))))
+        (expression_statement
+          (set_expression
+            (compound_assignment_expression
+              (identifier)
+              (integer_literal))))
+        (expression_statement
+          (set_expression
+            (compound_assignment_expression
+              (identifier)
+              (integer_literal))))))))
 
 ================================================================================
 Unwrap expression
@@ -350,21 +353,21 @@ operation Main() : Unit {
         (let_statement
           (pattern
             (identifier))
-          (binary_expression
-            (lambda_expression
-              (parenthesized_expression
-                (identifier))
+          (lambda_expression
+            (parenthesized_expression
               (identifier))
-            (integer_literal)))
+            (binary_expression
+              (identifier)
+              (integer_literal))))
         (let_statement
           (pattern
             (identifier))
-          (call_expression
-            (lambda_expression
-              (parenthesized_expression
-                (identifier))
+          (lambda_expression
+            (parenthesized_expression
               (identifier))
-            (identifier)))))))
+            (call_expression
+              (identifier)
+              (identifier))))))))
 
 ================================================================================
 Range expressions
@@ -398,8 +401,8 @@ operation Main() : Unit {
             (identifier))
           (step_range_expression
             (integer_literal)
-            (integer_literal)
-            (integer_literal)))
+            step: (integer_literal)
+            end: (integer_literal)))
         (let_statement
           (pattern
             (identifier))
@@ -451,3 +454,253 @@ operation Main() : Unit {
           (index_expression
             (identifier)
             (integer_literal)))))))
+
+================================================================================
+Prefix minus binds looser than exponent
+================================================================================
+
+function F() : Int { -2 ^ 2 }
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (callable_decl
+    (identifier)
+    (param_list)
+    (builtin_type)
+    (callable_body
+      (block
+        (expression_statement
+          (unary_expression
+            (binary_expression
+              (integer_literal)
+              (integer_literal))))))))
+
+================================================================================
+Bitwise operators bind tighter than comparisons
+================================================================================
+
+function F(a : Int) : Bool { a &&& 1 == 0 }
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (callable_decl
+    (identifier)
+    (param_list
+      (typed_param
+        (identifier)
+        (builtin_type)))
+    (builtin_type)
+    (callable_body
+      (block
+        (expression_statement
+          (binary_expression
+            (binary_expression
+              (identifier)
+              (integer_literal))
+            (integer_literal)))))))
+
+================================================================================
+Comparisons share one precedence level
+================================================================================
+
+function F(a : Int, b : Int, c : Bool) : Bool { a < b == c }
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (callable_decl
+    (identifier)
+    (param_list
+      (typed_param
+        (identifier)
+        (builtin_type))
+      (typed_param
+        (identifier)
+        (builtin_type))
+      (typed_param
+        (identifier)
+        (builtin_type)))
+    (builtin_type)
+    (callable_body
+      (block
+        (expression_statement
+          (binary_expression
+            (binary_expression
+              (identifier)
+              (identifier))
+            (identifier)))))))
+
+================================================================================
+Ternary else branch takes copy-and-update
+================================================================================
+
+function F(c : Bool) : Int[] { c ? [1] | [2] w/ 0 <- 5 }
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (callable_decl
+    (identifier)
+    (param_list
+      (typed_param
+        (identifier)
+        (builtin_type)))
+    (array_type
+      (builtin_type))
+    (callable_body
+      (block
+        (expression_statement
+          (ternary_expression
+            (identifier)
+            (array_expression
+              (integer_literal))
+            (update_expression
+              (array_expression
+                (integer_literal))
+              (integer_literal)
+              (integer_literal))))))))
+
+================================================================================
+Lambda body is a full expression
+================================================================================
+
+function F() : Unit {
+    let f = x -> x > 0 ? 1 | 2;
+    let g = (a, b,) -> a + b;
+}
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (callable_decl
+    (identifier)
+    (param_list)
+    (builtin_type)
+    (callable_body
+      (block
+        (let_statement
+          (pattern
+            (identifier))
+          (lambda_expression
+            (identifier)
+            (ternary_expression
+              (binary_expression
+                (identifier)
+                (integer_literal))
+              (integer_literal)
+              (integer_literal))))
+        (let_statement
+          (pattern
+            (identifier))
+          (lambda_expression
+            (tuple_expression
+              (identifier)
+              (identifier))
+            (binary_expression
+              (identifier)
+              (identifier))))))))
+
+================================================================================
+Open range operands
+================================================================================
+
+function F(a : Int[], i : Int, n : Int) : Unit {
+    let x = a[i + 1...];
+    let y = a[...n - 1];
+}
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (callable_decl
+    (identifier)
+    (param_list
+      (typed_param
+        (identifier)
+        (array_type
+          (builtin_type)))
+      (typed_param
+        (identifier)
+        (builtin_type))
+      (typed_param
+        (identifier)
+        (builtin_type)))
+    (builtin_type)
+    (callable_body
+      (block
+        (let_statement
+          (pattern
+            (identifier))
+          (index_expression
+            (identifier)
+            (open_range_start
+              (binary_expression
+                (identifier)
+                (integer_literal)))))
+        (let_statement
+          (pattern
+            (identifier))
+          (index_expression
+            (identifier)
+            (open_range_end
+              (binary_expression
+                (identifier)
+                (integer_literal)))))))))
+
+================================================================================
+Step ranges with open ends
+================================================================================
+
+function F(a : Int[]) : Unit {
+    let evens = a[...2...];
+    let rev = a[...-1...];
+    let tail = a[1..2...];
+    let head = a[...2..8];
+}
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (callable_decl
+    name: (identifier)
+    params: (param_list
+      (typed_param
+        name: (identifier)
+        type: (array_type
+          (builtin_type))))
+    return_type: (builtin_type)
+    body: (callable_body
+      (block
+        (let_statement
+          (pattern
+            (identifier))
+          (index_expression
+            (identifier)
+            (step_range_expression
+              step: (integer_literal))))
+        (let_statement
+          (pattern
+            (identifier))
+          (index_expression
+            (identifier)
+            (step_range_expression
+              step: (unary_expression
+                (integer_literal)))))
+        (let_statement
+          (pattern
+            (identifier))
+          (index_expression
+            (identifier)
+            (step_range_expression
+              (integer_literal)
+              step: (integer_literal))))
+        (let_statement
+          (pattern
+            (identifier))
+          (index_expression
+            (identifier)
+            (step_range_expression
+              step: (integer_literal)
+              end: (integer_literal))))))))
