@@ -144,7 +144,8 @@ function Foo<'T : Eq>(x : 'T) : Unit {}
     (type_params
       (type_param
         (apos_ident)
-        (identifier)))
+        (class_constraint
+          name: (identifier))))
     params: (param_list
       (typed_param
         name: (identifier)

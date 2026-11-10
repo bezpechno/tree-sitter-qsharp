@@ -31,5 +31,5 @@
   (identifier) @name) @reference.call
 
 (call_expression
-  (path
-    (identifier) @name .)) @reference.call
+  (field_expression
+    field: (identifier) @name)) @reference.call

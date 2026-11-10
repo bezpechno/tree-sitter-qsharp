@@ -113,3 +113,75 @@ operation Main() : Unit {
                 (call_expression
                   (identifier)
                   (identifier))))))))))
+
+================================================================================
+Return and fail as expressions
+================================================================================
+
+function F(c : Bool) : Int {
+    if c { return 1 }
+    let x = c ? 2 | fail "bad";
+    x
+}
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (callable_decl
+    (identifier)
+    (param_list
+      (typed_param
+        (identifier)
+        (builtin_type)))
+    (builtin_type)
+    (callable_body
+      (block
+        (expression_statement
+          (if_expression
+            (identifier)
+            (block
+              (expression_statement
+                (return_expression
+                  (integer_literal))))))
+        (let_statement
+          (pattern
+            (identifier))
+          (ternary_expression
+            (identifier)
+            (integer_literal)
+            (fail_expression
+              (string_literal))))
+        (expression_statement
+          (identifier))))))
+
+================================================================================
+Set without semicolon at end of block
+================================================================================
+
+operation F() : Unit {
+    mutable x = 0;
+    if true { set x = 1 }
+}
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (callable_decl
+    (identifier)
+    (param_list)
+    (builtin_type)
+    (callable_body
+      (block
+        (mutable_statement
+          (pattern
+            (identifier))
+          (integer_literal))
+        (expression_statement
+          (if_expression
+            (bool_literal)
+            (block
+              (expression_statement
+                (set_expression
+                  (assignment_expression
+                    (identifier)
+                    (integer_literal)))))))))))

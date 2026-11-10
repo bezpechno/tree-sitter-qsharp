@@ -12,4 +12,11 @@ func TestCanLoadGrammar(t *testing.T) {
 	if language == nil {
 		t.Errorf("Error loading Qsharp grammar")
 	}
+
+	// NewLanguage doesn't check the ABI version; SetLanguage does.
+	parser := tree_sitter.NewParser()
+	defer parser.Close()
+	if err := parser.SetLanguage(language); err != nil {
+		t.Errorf("Error setting Qsharp grammar: %v", err)
+	}
 }

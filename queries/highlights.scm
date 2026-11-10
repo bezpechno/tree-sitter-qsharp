@@ -61,6 +61,7 @@
 
 ; Control flow — loops
 ["for" "in" "while" "repeat" "until" "fixup"] @keyword.repeat
+[(break_expression) (continue_expression)] @keyword.repeat
 
 ; Control flow — return / fail
 "return" @keyword.return
@@ -68,6 +69,9 @@
 
 ; Conjugation (quantum-specific control flow)
 ["within" "apply"] @keyword
+
+; Parallel execution hint (`parallel ...`, `parallel within <limit> ...`)
+"parallel" @keyword
 
 ; Other keywords
 ["namespace" "as" "new" "is"] @keyword
@@ -128,6 +132,10 @@
 (type_param
   (apos_ident) @type)
 
+; Type class bounds: `'T : Eq + Exp[Int]`
+(class_constraint
+  name: (identifier) @type)
+
 (functor_expr
   ["Adj" "Ctl"] @type.builtin)
 
@@ -174,13 +182,16 @@
 ; Function / operation calls
 (call_expression
   (identifier) @function.call)
-(call_expression
-  (path
-    (identifier) @function.call .))
 
 ; Field access
 (field_expression
   field: (identifier) @variable.member)
+
+; Qualified call (`Std.Math.PI()`, `x.F()`). After the field rule so it takes
+; precedence where later patterns win (nvim-treesitter).
+(call_expression
+  (field_expression
+    field: (identifier) @function.call))
 
 ; new Struct { ... }
 (new_expression
@@ -198,14 +209,10 @@
 ; Variables
 ; =====================================================================
 
-(let_statement
-  (pattern (identifier) @variable))
-
-(mutable_statement
-  (pattern (identifier) @variable))
-
-(for_expression
-  (pattern (identifier) @variable))
+; Bindings in let / mutable / use / borrow / for, including nested and typed
+; tuple patterns: `let (a, (b : Int, _)) = ...`
+(pattern
+  (identifier) @variable)
 
 (discard) @variable.builtin
 

@@ -12,23 +12,17 @@
 (conjugation_expression) @local.scope
 
 ; Definitions
-(let_statement
-  (pattern (identifier) @local.definition))
-
-(mutable_statement
-  (pattern (identifier) @local.definition))
-
-(for_expression
-  (pattern (identifier) @local.definition))
+; Bindings in let / mutable / use / borrow / for, including nested and typed
+; tuple patterns
+(pattern
+  (identifier) @local.definition)
 
 (typed_param
   name: (identifier) @local.definition)
 
-(use_statement
-  (pattern (identifier) @local.definition))
-
-(borrow_statement
-  (pattern (identifier) @local.definition))
+; Callables, including ones declared inside a block
+(callable_decl
+  name: (identifier) @local.definition)
 
 ; References
 (identifier) @local.reference

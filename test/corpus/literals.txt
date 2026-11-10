@@ -76,7 +76,8 @@ Imaginary literals
 ================================================================================
 
 operation Main() : Unit {
-    let a = 2i;
+    let a = 2.i;
+    let c = 1e3i;
     let b = 1.5i;
 }
 
@@ -89,8 +90,18 @@ operation Main() : Unit {
     return_type: (builtin_type)
     body: (callable_body
       (block
-        (let_statement (pattern (identifier)) (imaginary_literal))
-        (let_statement (pattern (identifier)) (imaginary_literal))))))
+        (let_statement
+          (pattern
+            (identifier))
+          (imaginary_literal))
+        (let_statement
+          (pattern
+            (identifier))
+          (imaginary_literal))
+        (let_statement
+          (pattern
+            (identifier))
+          (imaginary_literal))))))
 
 ================================================================================
 String literal

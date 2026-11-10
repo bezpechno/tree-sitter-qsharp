@@ -1,11 +1,12 @@
 {
   "name": "tree-sitter-qsharp",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Q# grammar for tree-sitter",
+  "type": "module",
   "repository": "github:bezpechno/tree-sitter-qsharp",
   "license": "MIT",
-  "main": "bindings/node",
-  "types": "bindings/node",
+  "main": "bindings/node/index.js",
+  "types": "bindings/node/index.d.ts",
   "keywords": [
     "tree-sitter",
     "qsharp",
@@ -15,6 +16,7 @@
   ],
   "files": [
     "grammar.js",
+    "tree-sitter.json",
     "binding.gyp",
     "prebuilds/**",
     "bindings/node/*",
@@ -23,11 +25,11 @@
     "*.wasm"
   ],
   "dependencies": {
-    "node-addon-api": "^8.9.0",
+    "node-addon-api": "^8.9.2",
     "node-gyp-build": "^4.8.4"
   },
   "peerDependencies": {
-    "tree-sitter": "^0.22.4"
+    "tree-sitter": "^0.25.0"
   },
   "peerDependenciesMeta": {
     "tree-sitter": {
@@ -35,13 +37,16 @@
     }
   },
   "devDependencies": {
-    "tree-sitter-cli": "^0.26.10",
-    "prebuildify": "^6.0.1"
+    "prebuildify": "^6.0.1",
+    "tree-sitter": "^0.25.0",
+    "tree-sitter-cli": "^0.27.2"
   },
   "scripts": {
+    "install": "node-gyp-build",
     "build": "tree-sitter generate && node-gyp build",
     "generate": "tree-sitter generate",
     "test": "tree-sitter test",
-    "parse": "tree-sitter parse"
+    "parse": "tree-sitter parse",
+    "test:node": "node --test bindings/node/*_test.js"
   }
 }

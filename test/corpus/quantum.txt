@@ -242,3 +242,92 @@ operation Main() : Unit {
                 (call_expression
                   (identifier)
                   (identifier))))))))))
+
+================================================================================
+Parallel for loop
+================================================================================
+
+operation Main() : Unit {
+    parallel for i in 0..3 {
+        H(qs[i]);
+    }
+}
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (callable_decl
+    name: (identifier)
+    params: (param_list)
+    return_type: (builtin_type)
+    body: (callable_body
+      (block
+        (expression_statement
+          (parallel_expression
+            body: (for_expression
+              (pattern (identifier))
+              (range_expression (integer_literal) (integer_literal))
+              (block
+                (expression_statement
+                  (call_expression
+                    (identifier)
+                    (index_expression (identifier) (identifier))))))))))))
+
+================================================================================
+Parallel call with and without limit
+================================================================================
+
+operation Main() : Unit {
+    parallel JointMeasure(qs);
+    parallel within 2 JointMeasure(qs);
+    let r = parallel F(x) + 1;
+}
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (callable_decl
+    name: (identifier)
+    params: (param_list)
+    return_type: (builtin_type)
+    body: (callable_body
+      (block
+        (expression_statement
+          (parallel_expression
+            body: (call_expression (identifier) (identifier))))
+        (expression_statement
+          (parallel_expression
+            limit: (integer_literal)
+            body: (call_expression (identifier) (identifier))))
+        (let_statement
+          (pattern (identifier))
+          (parallel_expression
+            body: (binary_expression
+              (call_expression (identifier) (identifier))
+              (integer_literal))))))))
+
+================================================================================
+Parallel within block
+================================================================================
+
+operation Main() : Unit {
+    parallel within n + 1 {
+        X(q);
+    }
+}
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (callable_decl
+    name: (identifier)
+    params: (param_list)
+    return_type: (builtin_type)
+    body: (callable_body
+      (block
+        (expression_statement
+          (parallel_expression
+            limit: (binary_expression (identifier) (integer_literal))
+            body: (block
+              (expression_statement
+                (call_expression (identifier) (identifier))))))))))
