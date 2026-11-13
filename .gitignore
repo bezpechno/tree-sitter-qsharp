@@ -50,3 +50,6 @@ zig-out/
 
 # Local notes
 knowledge/
+
+# Editor settings
+.vscode/
