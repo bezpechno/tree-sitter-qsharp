@@ -1,6 +1,6 @@
 LANGUAGE_NAME := tree-sitter-qsharp
 HOMEPAGE_URL := https://github.com/bezpechno/tree-sitter-qsharp
-VERSION := 0.3.0
+VERSION := 0.3.1
 DESCRIPTION := Q\# grammar for tree-sitter
 
 # repository
