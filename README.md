@@ -3,10 +3,12 @@
 [![CI][ci]](https://github.com/bezpechno/tree-sitter-qsharp/actions/workflows/ci.yml)
 [![npm][npm]](https://www.npmjs.com/package/tree-sitter-qsharp)
 [![crates][crates]](https://crates.io/crates/tree-sitter-qsharp)
+[![pypi][pypi]](https://pypi.org/project/tree-sitter-qsharp/)
 
 [ci]: https://img.shields.io/github/actions/workflow/status/bezpechno/tree-sitter-qsharp/ci.yml?branch=main&logo=github&label=CI
 [npm]: https://img.shields.io/npm/v/tree-sitter-qsharp?logo=npm
 [crates]: https://img.shields.io/crates/v/tree-sitter-qsharp?logo=rust
+[pypi]: https://img.shields.io/pypi/v/tree-sitter-qsharp?logo=pypi&logoColor=white
 
 A [tree-sitter](https://tree-sitter.github.io/) grammar for [Q#](https://learn.microsoft.com/en-us/azure/quantum/overview-what-is-qsharp-and-qdk), Microsoft's quantum programming language.
 
