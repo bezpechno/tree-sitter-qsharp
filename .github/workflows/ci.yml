@@ -27,7 +27,7 @@ jobs:
           # regenerates src/parser.c and fails if it differs from the committed one.
           tree-sitter-ref: v0.27.2
       - name: Run parser and binding tests
-        uses: tree-sitter/parser-test-action@05f6ce7c7e54603c45cd87ed926725dc870bcc63 # v3
+        uses: tree-sitter/parser-test-action@92e35c06b51ea26c80ffbd3cc8d9286d9110df17 # v3
         with:
           test-rust: true
           test-node: true
